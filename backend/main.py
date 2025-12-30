@@ -42,24 +42,6 @@ async def search_youtube(q: str = Query(..., min_length=1)):
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
     await manager.connect(websocket, room_id)
-    role = manager.get_user_role(websocket, room_id)
-
-    await websocket.send_json({
-        "type": "YOU_ARE",
-        "payload": {
-            "role": role
-        }
-    })
-
-    users, count = manager.get_room_users(room_id)
-
-    await manager.broadcast({
-        "type": "ROOM_USERS",
-        "payload": {
-            "users": users,
-            "count": count
-        }
-    }, room_id)
 
     state = await get_room_state(room_id)
 
@@ -141,13 +123,3 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
 
     except WebSocketDisconnect:
         manager.disconnect(websocket, room_id)
-
-        users, count = manager.get_room_users(room_id)
-
-        await manager.broadcast({
-            "type": "ROOM_USERS",
-            "payload": {
-                "users": users,
-                "count": count
-            }
-        }, room_id)
