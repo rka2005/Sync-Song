@@ -16,6 +16,10 @@ const Room = () => {
     const userActionRef = useRef(false);
     const lastSeekTimeRef = useRef(0);
 
+    // Room users
+    const [users, setUsers] = useState([]);
+    const [userCount, setUserCount] = useState(0);
+    const [myRole, setMyRole] = useState(null);
 
     // --- STATE ---
     const [url, setUrl] = useState('');
@@ -23,6 +27,7 @@ const Room = () => {
     const [isReady, setIsReady] = useState(false);
     const [player, setPlayer] = useState(null);
     const ignoreNextStateChange = useRef(false);
+    const pendingSyncState = useRef(null);
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -44,6 +49,17 @@ const Room = () => {
             const { type, payload } = lastJsonMessage;
 
             switch (type) {
+                case 'ROOM_USERS': {
+                    setUsers(payload.users);
+                    setUserCount(payload.count);
+                    break;
+                }
+                
+                case 'YOU_ARE': {
+                    setMyRole(payload.role);
+                    break;
+                }
+                
                 case 'SYNC_STATE': {
                     const { url, is_playing, started_at } = payload;
 
@@ -56,6 +72,10 @@ const Room = () => {
                         player.seekTo(elapsed, true);
                         player.playVideo();
                         setPlaying(true);
+                    } else if (is_playing && started_at) {
+                        // Store sync state to apply when player is ready
+                        pendingSyncState.current = { is_playing, started_at };
+                        setPlaying(false);
                     } else {
                         setPlaying(false);
                     }
@@ -138,6 +158,18 @@ const Room = () => {
                         onReady: (event) => {
                             setPlayer(event.target);
                             setIsReady(true);
+                            
+                            // Apply pending sync state if exists
+                            if (pendingSyncState.current) {
+                                const { is_playing, started_at } = pendingSyncState.current;
+                                if (is_playing && started_at) {
+                                    const elapsed = (Date.now() - started_at) / 1000;
+                                    event.target.seekTo(elapsed, true);
+                                    event.target.playVideo();
+                                    setPlaying(true);
+                                }
+                                pendingSyncState.current = null;
+                            }
                         },
                         onStateChange: (event) => {
                             const YT_STATE = window.YT.PlayerState;
@@ -199,7 +231,7 @@ const Room = () => {
 
         setIsSearching(true);
         try {
-            const response = await fetch(`http://localhost:8000/search?q=${encodeURIComponent(searchQuery)}`);
+            const response = await fetch(`${WS_URL.replace('ws', 'http')}/search?q=${encodeURIComponent(searchQuery)}`)            ;
             const data = await response.json();
             setSearchResults(data);
         } catch (error) {
@@ -262,7 +294,25 @@ const Room = () => {
                     <span style={{ fontSize: '0.8rem', color: readyState === ReadyState.OPEN ? '#00D9FF' : '#ef4444', fontWeight: '500' }}>
                         ● {connectionStatus}
                     </span>
+
+                    <div style={{ marginTop: '6px', fontSize: '0.8rem', color: '#aaa' }}>
+                        👥 {userCount} members
+                    </div>
+
+                    <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
+                        {['admin', 'member'].map((roleType) => {
+                            if (!users.includes(roleType)) return null;
+                            const isYourRole = roleType === myRole;
+                            return (
+                                <div key={roleType}>
+                                    {roleType === 'admin' ? '👑 Admin' : '👤 Member'}
+                                    {isYourRole ? ' (You)' : ''}
+                                </div>
+                            );
+                        })} 
+                    </div>
                 </div>
+
                 <button className="btn btn-secondary" onClick={() => navigate('/')} style={{ padding: '10px 20px', background: 'rgba(255,59,59,0.15)', border: '1px solid rgba(255,59,59,0.3)', color: '#ff6b6b', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.3s ease' }}>
                     Leave Room
                 </button>
