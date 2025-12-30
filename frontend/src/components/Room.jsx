@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import useWebSocket, { ReadyState } from 'react-use-websocket';
-import { WS_URL } from '../config';
+import { WS_URL, API_BASE_URL } from '../config';
 import './Room.css';
 
 const SearchIcon = () => (
@@ -214,10 +214,12 @@ const Room = () => {
 
         setIsSearching(true);
         try {
-            const response = await fetch(`${WS_URL.replace('ws', 'http')}/search?q=${encodeURIComponent(searchQuery)}`);
+            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}`);
             const data = await response.json();
+            console.log('Search results:', data);
             setSearchResults(data);
         } catch (error) {
+            console.error('Search error:', error);
             setSearchResults([]);
         }
         setIsSearching(false);
