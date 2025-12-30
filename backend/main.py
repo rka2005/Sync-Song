@@ -51,8 +51,8 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
         }
     })
 
-    users, count = manager.get_room_users(room_id)
-
+    # users, count = manager.get_room_users(room_id)
+    
     await manager.broadcast({
         "type": "ROOM_USERS",
         "payload": {
