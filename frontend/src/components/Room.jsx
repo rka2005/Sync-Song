@@ -27,7 +27,6 @@ const Room = () => {
     const [isReady, setIsReady] = useState(false);
     const [player, setPlayer] = useState(null);
     const ignoreNextStateChange = useRef(false);
-    const pendingSyncState = useRef(null);
 
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
@@ -37,7 +36,7 @@ const Room = () => {
     useEffect(() => {
         setIsReady(false);
     }, [url]);
-    
+
     // --- WEBSOCKET CONNECTION ---
     const { sendMessage, lastJsonMessage, readyState } = useWebSocket(`${WS_URL}/${roomId}`, {
         shouldReconnect: (closeEvent) => true,
@@ -54,12 +53,12 @@ const Room = () => {
                     setUserCount(payload.count);
                     break;
                 }
-                
+
                 case 'YOU_ARE': {
                     setMyRole(payload.role);
                     break;
                 }
-                
+
                 case 'SYNC_STATE': {
                     const { url, is_playing, started_at } = payload;
 
@@ -72,15 +71,11 @@ const Room = () => {
                         player.seekTo(elapsed, true);
                         player.playVideo();
                         setPlaying(true);
-                    } else if (is_playing && started_at) {
-                        // Store sync state to apply when player is ready
-                        pendingSyncState.current = { is_playing, started_at };
-                        setPlaying(false);
                     } else {
                         setPlaying(false);
                     }
                     break;
-                }                
+                }
                 case 'PLAY': {
                     if (!player || !payload?.started_at) break;
 
@@ -90,7 +85,7 @@ const Room = () => {
                     player.playVideo();
                     setPlaying(true);
                     break;
-                }                
+                }
                 case 'PAUSE':
                     ignoreNextStateChange.current = true;
                     player.pauseVideo();
@@ -107,7 +102,7 @@ const Room = () => {
                 case 'SEEK':
                     ignoreNextStateChange.current = true;
                     player.seekTo(payload.time, true);
-                    break;                    
+                    break;
                 default: break;
             }
         }
@@ -146,7 +141,7 @@ const Room = () => {
                 payload: { time }
             }));
         }
-    };    
+    };
 
     // Initialize player when iframe loads
     useEffect(() => {
@@ -158,18 +153,6 @@ const Room = () => {
                         onReady: (event) => {
                             setPlayer(event.target);
                             setIsReady(true);
-                            
-                            // Apply pending sync state if exists
-                            if (pendingSyncState.current) {
-                                const { is_playing, started_at } = pendingSyncState.current;
-                                if (is_playing && started_at) {
-                                    const elapsed = (Date.now() - started_at) / 1000;
-                                    event.target.seekTo(elapsed, true);
-                                    event.target.playVideo();
-                                    setPlaying(true);
-                                }
-                                pendingSyncState.current = null;
-                            }
                         },
                         onStateChange: (event) => {
                             const YT_STATE = window.YT.PlayerState;
@@ -203,7 +186,7 @@ const Room = () => {
                                 userActionRef.current = false;
                                 handleSeek();
                             }
-                        }                                             
+                        }
                     }
                 });
             };
@@ -231,7 +214,7 @@ const Room = () => {
 
         setIsSearching(true);
         try {
-            const response = await fetch(`${WS_URL.replace('ws', 'http')}/search?q=${encodeURIComponent(searchQuery)}`)            ;
+            const response = await fetch(`${WS_URL.replace('ws', 'http')}/search?q=${encodeURIComponent(searchQuery)}`);
             const data = await response.json();
             setSearchResults(data);
         } catch (error) {
@@ -244,7 +227,7 @@ const Room = () => {
         let cleanUrl = videoUrl.trim();
         try {
             const urlObj = new URL(cleanUrl);
-            
+
             if (urlObj.hostname === 'youtu.be') {
                 const videoId = urlObj.pathname.substring(1);
                 cleanUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -309,7 +292,7 @@ const Room = () => {
                                     {isYourRole ? ' (You)' : ''}
                                 </div>
                             );
-                        })} 
+                        })}
                     </div>
                 </div>
 
@@ -412,14 +395,14 @@ const Room = () => {
                                     textAlign: 'left',
                                     border: '1px solid rgba(0,217,255,0.15)'
                                 }}
-                                onMouseOver={(e) => { 
-                                    e.currentTarget.style.background = 'rgba(79,70,229,0.15)'; 
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.background = 'rgba(79,70,229,0.15)';
                                     e.currentTarget.style.borderColor = 'rgba(0,217,255,0.35)';
                                     e.currentTarget.style.transform = 'translateX(5px)';
                                     e.currentTarget.style.boxShadow = '0 8px 20px rgba(0, 217, 255, 0.25)';
                                 }}
-                                onMouseOut={(e) => { 
-                                    e.currentTarget.style.background = 'rgba(79,70,229,0.08)'; 
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = 'rgba(79,70,229,0.08)';
                                     e.currentTarget.style.borderColor = 'rgba(0,217,255,0.15)';
                                     e.currentTarget.style.transform = 'translateX(0)';
                                     e.currentTarget.style.boxShadow = 'none';
