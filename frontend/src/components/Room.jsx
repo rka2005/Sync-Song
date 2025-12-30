@@ -283,13 +283,13 @@ const Room = () => {
                     </div>
 
                     <div style={{ fontSize: '0.75rem', marginTop: '4px' }}>
-                        {users.map((role, index) => {
-                            // Show "(You)" for the first occurrence of your role
-                            const isFirstOfMyRole = users.slice(0, index).filter(r => r === role).length === 0 && role === myRole;
+                        {['admin', 'member'].map((roleType) => {
+                            if (!users.includes(roleType)) return null;
+                            const isYourRole = roleType === myRole;
                             return (
-                                <div key={index}>
-                                    {role === 'admin' ? '👑 Admin' : '👤 Member'}
-                                    {isFirstOfMyRole ? ' (You)' : ''}
+                                <div key={roleType}>
+                                    {roleType === 'admin' ? '👑 Admin' : '👤 Member'}
+                                    {isYourRole ? ' (You)' : ''}
                                 </div>
                             );
                         })} 
