@@ -23,7 +23,7 @@ async def root():
 @app.get("/search")
 async def search_youtube(q: str = Query(..., min_length=1)):
     try:
-        videos_search = VideosSearch(q, limit=5)
+        videos_search = VideosSearch(q, limit=10)
         results = videos_search.result()
         formatted_results = []
         if results and 'result' in results:
