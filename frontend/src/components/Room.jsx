@@ -31,24 +31,41 @@ const Room = () => {
     // Search State
     const [searchQuery, setSearchQuery] = useState('');
     const [searchResults, setSearchResults] = useState([]);
+    const [suggestions, setSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [showSuggestions, setShowSuggestions] = useState(false);
 
-    // Debounced search
+    // Debounced suggestions
     useEffect(() => {
         if (!searchQuery.trim() || searchQuery.startsWith('http')) {
-            setSearchResults([]);
+            setSuggestions([]);
+            setShowSuggestions(false);
             return;
         }
 
         const delayDebounceFn = setTimeout(() => {
-            performSearch(searchQuery);
-        }, 500); // 500ms delay
+            fetchSuggestions(searchQuery);
+        }, 300); // 300ms delay for suggestions
 
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
 
+    const fetchSuggestions = async (query) => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/suggestions?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            setSuggestions(data);
+            setShowSuggestions(data.length > 0);
+        } catch (error) {
+            console.error('Suggestions error:', error);
+            setSuggestions([]);
+            setShowSuggestions(false);
+        }
+    };
+
     const performSearch = async (query) => {
         setIsSearching(true);
+        setShowSuggestions(false);
         try {
             const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
@@ -239,12 +256,13 @@ const Room = () => {
 
         if (!searchQuery.trim()) return;
 
-        // If we already have results, don't search again
-        if (searchResults.length > 0) {
-            return;
-        }
-
         performSearch(searchQuery);
+    };
+
+    const handleSuggestionClick = (suggestion) => {
+        setSearchQuery(suggestion);
+        setShowSuggestions(false);
+        performSearch(suggestion);
     };
 
     const selectVideo = (videoUrl) => {
@@ -376,7 +394,7 @@ const Room = () => {
 
             {/* Search Bar */}
             <div className="search-container">
-                <form onSubmit={handleSearch} className="input-group" style={{ marginTop: 0 }}>
+                <form onSubmit={handleSearch} className="input-group" style={{ marginTop: 0, position: 'relative' }}>
                     <div className="search-input-wrapper">
                         <input
                             className="search-input"
@@ -393,6 +411,45 @@ const Room = () => {
                         {isSearching ? '⏳ Searching...' : 'Go'}
                     </button>
                 </form>
+
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '100%',
+                        left: '0',
+                        right: '0',
+                        background: 'rgba(0, 0, 0, 0.9)',
+                        border: '1px solid rgba(0,217,255,0.3)',
+                        borderRadius: '8px',
+                        maxHeight: '200px',
+                        overflowY: 'auto',
+                        zIndex: 1000,
+                        marginTop: '5px'
+                    }}>
+                        {suggestions.map((suggestion, index) => (
+                            <div
+                                key={index}
+                                onClick={() => handleSuggestionClick(suggestion)}
+                                style={{
+                                    padding: '10px 15px',
+                                    cursor: 'pointer',
+                                    borderBottom: index < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
+                                    color: '#fff',
+                                    fontSize: '0.9rem'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.currentTarget.style.background = 'rgba(0,217,255,0.2)';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.currentTarget.style.background = 'transparent';
+                                }}
+                            >
+                                {suggestion}
+                            </div>
+                        ))}
+                    </div>
+                )}
 
                 {/* Search Results */}
                 {searchResults.length > 0 && (
