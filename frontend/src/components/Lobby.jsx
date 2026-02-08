@@ -1,20 +1,43 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../config.js';
 import '../App.css';
 
 const Lobby = () => {
     const [roomCode, setRoomCode] = useState('');
     const navigate = useNavigate();
 
-    const createRoom = () => {
+    const createRoom = async () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-        navigate(`/room/${newCode}`);
+        try {
+            const response = await fetch(`${API_BASE_URL}/room/${newCode}/create`, {
+                method: 'POST'
+            });
+            const data = await response.json();
+            if (data.success) {
+                navigate(`/room/${newCode}`);
+            } else {
+                alert('Error creating room. Please try again.');
+            }
+        } catch (error) {
+            alert('Error creating room. Please try again.');
+        }
     };
 
-    const joinRoom = (e) => {
+    const joinRoom = async (e) => {
         e.preventDefault();
         if (roomCode.trim()) {
-            navigate(`/room/${roomCode.toUpperCase()}`);
+            try {
+                const response = await fetch(`${API_BASE_URL}/room/${roomCode.toUpperCase()}/exists`);
+                const data = await response.json();
+                if (data.exists) {
+                    navigate(`/room/${roomCode.toUpperCase()}`);
+                } else {
+                    alert('Room does not exist. Please check the code and try again.');
+                }
+            } catch (error) {
+                alert('Error checking room. Please try again.');
+            }
         }
     };
 
