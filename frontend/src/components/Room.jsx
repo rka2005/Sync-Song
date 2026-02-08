@@ -34,18 +34,31 @@ const Room = () => {
     const [suggestions, setSuggestions] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
     const [showSuggestions, setShowSuggestions] = useState(false);
+    const searchContainerRef = useRef(null);
+
+    // Close suggestions when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(e.target)) {
+                setShowSuggestions(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Debounced suggestions
     useEffect(() => {
-        if (!searchQuery.trim() || searchQuery.startsWith('http')) {
+        const trimmed = searchQuery.trim();
+        if (!trimmed || trimmed.length < 1 || trimmed.startsWith('http')) {
             setSuggestions([]);
             setShowSuggestions(false);
             return;
         }
 
         const delayDebounceFn = setTimeout(() => {
-            fetchSuggestions(searchQuery);
-        }, 300); // 300ms delay for suggestions
+            fetchSuggestions(trimmed);
+        }, 250);
 
         return () => clearTimeout(delayDebounceFn);
     }, [searchQuery]);
@@ -53,9 +66,11 @@ const Room = () => {
     const fetchSuggestions = async (query) => {
         try {
             const response = await fetch(`${API_BASE_URL}/suggestions?q=${encodeURIComponent(query)}`);
+            if (!response.ok) throw new Error('Failed to fetch suggestions');
             const data = await response.json();
-            setSuggestions(data);
-            setShowSuggestions(data.length > 0);
+            const filtered = Array.isArray(data) ? data.filter(s => typeof s === 'string') : [];
+            setSuggestions(filtered);
+            setShowSuggestions(filtered.length > 0);
         } catch (error) {
             console.error('Suggestions error:', error);
             setSuggestions([]);
@@ -69,7 +84,7 @@ const Room = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
-            setSearchResults(data);
+            setSearchResults(Array.isArray(data) ? data : []);
         } catch (error) {
             console.error('Search error:', error);
             setSearchResults([]);
@@ -393,63 +408,77 @@ const Room = () => {
             </div>
 
             {/* Search Bar */}
-            <div className="search-container">
-                <form onSubmit={handleSearch} className="input-group" style={{ marginTop: 0, position: 'relative' }}>
-                    <div className="search-input-wrapper">
-                        <input
-                            className="search-input"
-                            type="text"
-                            placeholder="Search song OR paste URL..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                        <div style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }}>
-                            <SearchIcon />
-                        </div>
-                    </div>
-                    <button type="submit" className="btn-search" disabled={isSearching}>
-                        {isSearching ? '⏳ Searching...' : 'Go'}
-                    </button>
-                </form>
-
-                {/* Suggestions Dropdown */}
-                {showSuggestions && suggestions.length > 0 && (
-                    <div style={{
-                        position: 'absolute',
-                        top: '100%',
-                        left: '0',
-                        right: '0',
-                        background: 'rgba(0, 0, 0, 0.9)',
-                        border: '1px solid rgba(0,217,255,0.3)',
-                        borderRadius: '8px',
-                        maxHeight: '200px',
-                        overflowY: 'auto',
-                        zIndex: 1000,
-                        marginTop: '5px'
-                    }}>
-                        {suggestions.map((suggestion, index) => (
-                            <div
-                                key={index}
-                                onClick={() => handleSuggestionClick(suggestion)}
-                                style={{
-                                    padding: '10px 15px',
-                                    cursor: 'pointer',
-                                    borderBottom: index < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.1)' : 'none',
-                                    color: '#fff',
-                                    fontSize: '0.9rem'
+            <div className="search-container" ref={searchContainerRef}>
+                <div style={{ position: 'relative', width: '100%' }}>
+                    <form onSubmit={handleSearch} className="input-group" style={{ marginTop: 0 }}>
+                        <div className="search-input-wrapper">
+                            <input
+                                className="search-input"
+                                type="text"
+                                placeholder="Search song OR paste URL..."
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value);
+                                    if (!e.target.value.trim()) {
+                                        setSearchResults([]);
+                                    }
                                 }}
-                                onMouseOver={(e) => {
-                                    e.currentTarget.style.background = 'rgba(0,217,255,0.2)';
-                                }}
-                                onMouseOut={(e) => {
-                                    e.currentTarget.style.background = 'transparent';
-                                }}
-                            >
-                                {suggestion}
+                                onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+                            />
+                            <div style={{ position: 'absolute', left: '15px', top: '50%', transform: 'translateY(-50%)', color: '#666', pointerEvents: 'none' }}>
+                                <SearchIcon />
                             </div>
-                        ))}
-                    </div>
-                )}
+                        </div>
+                        <button type="submit" className="btn-search" disabled={isSearching}>
+                            {isSearching ? '⏳ Searching...' : 'Go'}
+                        </button>
+                    </form>
+
+                    {/* Suggestions Dropdown */}
+                    {showSuggestions && suggestions.length > 0 && (
+                        <div style={{
+                            position: 'absolute',
+                            top: '100%',
+                            left: '0',
+                            right: '0',
+                            background: '#1a1a2e',
+                            border: '1px solid rgba(0,217,255,0.3)',
+                            borderTop: 'none',
+                            borderRadius: '0 0 10px 10px',
+                            maxHeight: '250px',
+                            overflowY: 'auto',
+                            zIndex: 1000,
+                            boxShadow: '0 8px 25px rgba(0, 0, 0, 0.5)'
+                        }}>
+                            {suggestions.map((suggestion, index) => (
+                                <div
+                                    key={index}
+                                    onClick={() => handleSuggestionClick(suggestion)}
+                                    style={{
+                                        padding: '10px 15px 10px 45px',
+                                        cursor: 'pointer',
+                                        borderBottom: index < suggestions.length - 1 ? '1px solid rgba(255,255,255,0.06)' : 'none',
+                                        color: '#e0e0e0',
+                                        fontSize: '0.9rem',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '10px',
+                                        transition: 'background 0.15s ease'
+                                    }}
+                                    onMouseOver={(e) => {
+                                        e.currentTarget.style.background = 'rgba(0,217,255,0.15)';
+                                    }}
+                                    onMouseOut={(e) => {
+                                        e.currentTarget.style.background = 'transparent';
+                                    }}
+                                >
+                                    <span style={{ color: '#666', fontSize: '0.8rem' }}>🔍</span>
+                                    {suggestion}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
 
                 {/* Search Results */}
                 {searchResults.length > 0 && (

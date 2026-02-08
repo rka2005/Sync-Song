@@ -61,19 +61,17 @@ async def search_youtube(q: str = Query(..., min_length=1)):
 async def get_suggestions(q: str = Query(..., min_length=1)):
     try:
         # YouTube autocomplete API
-        url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={q}&jsonp=callback"
-        response = requests.get(url)
+        url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={q}"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        response = requests.get(url, headers=headers, params={"client": "firefox"})
         if response.status_code == 200:
-            # Parse JSONP response
-            jsonp_data = response.text
-            # Remove the callback wrapper
-            json_data = jsonp_data[9:-1]  # Remove "callback(" and ")"
-            data = json.loads(json_data)
-            # data[1] contains the suggestions
+            data = response.json()
+            # data[1] contains the suggestion strings
             suggestions = data[1] if len(data) > 1 else []
-            return suggestions
+            return suggestions[:8]
         return []
-    except Exception:
+    except Exception as e:
+        print(f"Suggestions error: {e}")
         return []
 
 @app.websocket("/ws/{room_id}")
