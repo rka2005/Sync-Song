@@ -4,6 +4,8 @@ from database import get_room_state, update_room_state
 from connection_manager import ConnectionManager
 from youtubesearchpython import VideosSearch 
 import time
+import requests
+import json
 
 app = FastAPI()
 manager = ConnectionManager()
@@ -52,6 +54,25 @@ async def search_youtube(q: str = Query(..., min_length=1)):
                     'channel': video['channel']['name']
                 })
         return formatted_results
+    except Exception:
+        return []
+
+@app.get("/suggestions")
+async def get_suggestions(q: str = Query(..., min_length=1)):
+    try:
+        # YouTube autocomplete API
+        url = f"https://suggestqueries.google.com/complete/search?client=youtube&ds=yt&q={q}&jsonp=callback"
+        response = requests.get(url)
+        if response.status_code == 200:
+            # Parse JSONP response
+            jsonp_data = response.text
+            # Remove the callback wrapper
+            json_data = jsonp_data[9:-1]  # Remove "callback(" and ")"
+            data = json.loads(json_data)
+            # data[1] contains the suggestions
+            suggestions = data[1] if len(data) > 1 else []
+            return suggestions
+        return []
     except Exception:
         return []
 
