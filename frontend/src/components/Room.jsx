@@ -33,6 +33,33 @@ const Room = () => {
     const [searchResults, setSearchResults] = useState([]);
     const [isSearching, setIsSearching] = useState(false);
 
+    // Debounced search
+    useEffect(() => {
+        if (!searchQuery.trim() || searchQuery.startsWith('http')) {
+            setSearchResults([]);
+            return;
+        }
+
+        const delayDebounceFn = setTimeout(() => {
+            performSearch(searchQuery);
+        }, 500); // 500ms delay
+
+        return () => clearTimeout(delayDebounceFn);
+    }, [searchQuery]);
+
+    const performSearch = async (query) => {
+        setIsSearching(true);
+        try {
+            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            setSearchResults(data);
+        } catch (error) {
+            console.error('Search error:', error);
+            setSearchResults([]);
+        }
+        setIsSearching(false);
+    };
+
     useEffect(() => {
         setIsReady(false);
     }, [url]);
@@ -212,17 +239,12 @@ const Room = () => {
 
         if (!searchQuery.trim()) return;
 
-        setIsSearching(true);
-        try {
-            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(searchQuery)}`);
-            const data = await response.json();
-            console.log('Search results:', data);
-            setSearchResults(data);
-        } catch (error) {
-            console.error('Search error:', error);
-            setSearchResults([]);
+        // If we already have results, don't search again
+        if (searchResults.length > 0) {
+            return;
         }
-        setIsSearching(false);
+
+        performSearch(searchQuery);
     };
 
     const selectVideo = (videoUrl) => {
