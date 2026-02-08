@@ -36,6 +36,25 @@ async def room_exists(room_id: str):
         return {"exists": True}
     return {"exists": False}
 
+@app.get("/search")
+async def search_youtube(q: str = Query(..., min_length=1)):
+    try:
+        videos_search = VideosSearch(q, limit=10)
+        results = videos_search.result()
+        formatted_results = []
+        if results and 'result' in results:
+            for video in results['result']:
+                formatted_results.append({
+                    'title': video['title'],
+                    'duration': video.get('duration'),
+                    'thumbnail': video['thumbnails'][0]['url'],
+                    'url': video['link'],
+                    'channel': video['channel']['name']
+                })
+        return formatted_results
+    except Exception:
+        return []
+
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
     from database import room_states
