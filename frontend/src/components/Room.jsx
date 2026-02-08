@@ -65,12 +65,21 @@ const Room = () => {
 
     const fetchSuggestions = async (query) => {
         try {
-            const response = await fetch(`${API_BASE_URL}/suggestions?q=${encodeURIComponent(query)}`);
+            // Use the /search endpoint to get rich suggestion data (title + thumbnail)
+            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
             if (!response.ok) throw new Error('Failed to fetch suggestions');
             const data = await response.json();
-            const filtered = Array.isArray(data) ? data.filter(s => typeof s === 'string') : [];
-            setSuggestions(filtered);
-            setShowSuggestions(filtered.length > 0);
+            const results = Array.isArray(data) ? data : [];
+            // keep only top 6 suggestions
+            const top = results.slice(0, 6).map(v => ({
+                title: v.title,
+                thumbnail: v.thumbnail,
+                url: v.url,
+                channel: v.channel,
+                duration: v.duration
+            }));
+            setSuggestions(top);
+            setShowSuggestions(top.length > 0);
         } catch (error) {
             console.error('Suggestions error:', error);
             setSuggestions([]);
@@ -84,12 +93,37 @@ const Room = () => {
         try {
             const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
             const data = await response.json();
-            setSearchResults(Array.isArray(data) ? data : []);
+            const results = Array.isArray(data) ? data : [];
+            setSearchResults(results);
+            return results;
         } catch (error) {
             console.error('Search error:', error);
             setSearchResults([]);
+            return [];
         }
         setIsSearching(false);
+    };
+
+    // Search and automatically select (play) the first result
+    const searchAndSelect = async (query) => {
+        setIsSearching(true);
+        setShowSuggestions(false);
+        try {
+            const response = await fetch(`${API_BASE_URL}/search?q=${encodeURIComponent(query)}`);
+            const data = await response.json();
+            const results = Array.isArray(data) ? data : [];
+            setSearchResults(results);
+            if (results.length > 0 && results[0].url) {
+                selectVideo(results[0].url);
+            }
+            return results;
+        } catch (error) {
+            console.error('Search error:', error);
+            setSearchResults([]);
+            return [];
+        } finally {
+            setIsSearching(false);
+        }
     };
 
     useEffect(() => {
@@ -271,13 +305,15 @@ const Room = () => {
 
         if (!searchQuery.trim()) return;
 
-        performSearch(searchQuery);
+        // On Enter, search and auto-play the top result (like YouTube)
+        await searchAndSelect(searchQuery);
     };
 
     const handleSuggestionClick = (suggestion) => {
         setSearchQuery(suggestion);
         setShowSuggestions(false);
-        performSearch(suggestion);
+        // When a suggestion is clicked, search and auto-play top result
+        searchAndSelect(suggestion);
     };
 
     const selectVideo = (videoUrl) => {
