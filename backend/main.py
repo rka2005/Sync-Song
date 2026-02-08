@@ -20,27 +20,28 @@ app.add_middleware(
 async def root():
     return {"status": "ok", "message": "Sync-Song API is running"}
 
-@app.get("/search")
-async def search_youtube(q: str = Query(..., min_length=1)):
-    try:
-        videos_search = VideosSearch(q, limit=10)
-        results = videos_search.result()
-        formatted_results = []
-        if results and 'result' in results:
-            for video in results['result']:
-                formatted_results.append({
-                    'title': video['title'],
-                    'duration': video.get('duration'),
-                    'thumbnail': video['thumbnails'][0]['url'],
-                    'url': video['link'],
-                    'channel': video['channel']['name']
-                })
-        return formatted_results
-    except Exception:
-        return []
+@app.post("/room/{room_id}/create")
+async def create_room(room_id: str):
+    if room_id in manager.rooms:
+        return {"error": "Room already exists"}
+    # Create the room state
+    await get_room_state(room_id)
+    return {"success": True}
+
+@app.get("/room/{room_id}/exists")
+async def room_exists(room_id: str):
+    from database import room_states
+    # Check if room has been created
+    if room_id in room_states:
+        return {"exists": True}
+    return {"exists": False}
 
 @app.websocket("/ws/{room_id}")
 async def websocket_endpoint(websocket: WebSocket, room_id: str):
+    from database import room_states
+    if room_id not in room_states:
+        await websocket.close()
+        return
     await manager.connect(websocket, room_id)
     role = manager.get_user_role(websocket, room_id)
 
