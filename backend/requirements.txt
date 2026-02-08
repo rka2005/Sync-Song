@@ -1,3 +1,4 @@
 fastapi
 uvicorn[standard]
 youtube-search-python
+requests
