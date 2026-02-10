@@ -5,10 +5,12 @@ import '../App.css';
 
 const Lobby = () => {
     const [roomCode, setRoomCode] = useState('');
+    const [isCreatingRoom, setIsCreatingRoom] = useState(false);
     const navigate = useNavigate();
 
     const createRoom = async () => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        setIsCreatingRoom(true);
         try {
             const response = await fetch(`${API_BASE_URL}/room/${newCode}/create`, {
                 method: 'POST'
@@ -17,9 +19,11 @@ const Lobby = () => {
             if (data.success) {
                 navigate(`/room/${newCode}`);
             } else {
+                setIsCreatingRoom(false);
                 alert('Error creating room. Please try again.');
             }
         } catch (error) {
+            setIsCreatingRoom(false);
             alert('Error creating room. Please try again.');
         }
     };
@@ -43,6 +47,21 @@ const Lobby = () => {
 
     return (
         <div className="landing-container">
+            {/* Loading Overlay */}
+            {isCreatingRoom && (
+                <div className="loading-overlay">
+                    <div className="loading-content">
+                        <div className="loading-spinner">
+                            <div className="spinner-ring"></div>
+                            <div className="spinner-ring"></div>
+                            <div className="spinner-ring"></div>
+                        </div>
+                        <h2 className="loading-title">Creating Your Room</h2>
+                        <p className="loading-subtitle">Please wait a moment...</p>
+                    </div>
+                </div>
+            )}
+            
             {/* Animated Background Blobs */}
             <div className="blob blob-1"></div>
             <div className="blob blob-2"></div>
