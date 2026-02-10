@@ -161,18 +161,30 @@ const Room = () => {
                         // Use server-calculated position for precise sync
                         let seekPosition = seek_to || 0;
                         
-                        // If server_time provided, add minimal client-side compensation
+                        // Better network delay compensation + buffer delay
+                        const bufferDelaySeconds = 0.15; // 150ms buffer for all devices
                         if (server_time) {
                             const clientReceiveTime = Date.now();
                             const networkDelay = (clientReceiveTime - server_time) / 1000;
-                            // Add network delay compensation (max 2 seconds to avoid issues)
-                            seekPosition += Math.min(networkDelay, 2);
+                            // Add network delay + buffer delay to account for setTimeout
+                            seekPosition += Math.min(networkDelay, 1) + bufferDelaySeconds;
+                        } else {
+                            seekPosition += bufferDelaySeconds;
                         }
 
                         ignoreNextStateChange.current = true;
+                        
+                        // Pause first to ensure clean state
+                        player.pauseVideo();
+                        
+                        // Seek to position (already compensated for the upcoming delay)
                         player.seekTo(seekPosition, true);
-                        player.playVideo();
-                        setPlaying(true);
+                        
+                        // Delay to allow buffering, then play
+                        setTimeout(() => {
+                            player.playVideo();
+                            setPlaying(true);
+                        }, 150);
                     } else {
                         setPlaying(false);
                     }
@@ -184,18 +196,30 @@ const Room = () => {
                     // Use server-calculated seek position for precise sync
                     let seekPosition = payload.seek_to || 0;
                     
-                    // Add minimal network delay compensation if server_time provided
+                    // Better network delay compensation + buffer delay
+                    const bufferDelaySeconds = 0.15; // 150ms buffer for all devices
                     if (payload.server_time) {
                         const clientReceiveTime = Date.now();
                         const networkDelay = (clientReceiveTime - payload.server_time) / 1000;
-                        // Add network delay compensation (max 2 seconds)
-                        seekPosition += Math.min(networkDelay, 2);
+                        // Add network delay + buffer delay to account for setTimeout
+                        seekPosition += Math.min(networkDelay, 1) + bufferDelaySeconds;
+                    } else {
+                        seekPosition += bufferDelaySeconds;
                     }
 
                     ignoreNextStateChange.current = true;
+                    
+                    // Pause first to ensure clean state
+                    player.pauseVideo();
+                    
+                    // Seek to position (already compensated for the upcoming delay)
                     player.seekTo(seekPosition, true);
-                    player.playVideo();
-                    setPlaying(true);
+                    
+                    // Delay to allow buffering across all devices, then play
+                    setTimeout(() => {
+                        player.playVideo();
+                        setPlaying(true);
+                    }, 150);
                     break;
                 }
                 case 'PAUSE':
