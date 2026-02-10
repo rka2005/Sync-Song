@@ -105,6 +105,13 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
     if state["is_playing"] and not state["started_at"]:
         state["started_at"] = int(time.time() * 1000)
 
+    # Calculate exact seek position for new joiner
+    current_time = int(time.time() * 1000)
+    if state["is_playing"] and state["started_at"]:
+        seek_to_seconds = (current_time - state["started_at"]) / 1000.0
+        state["seek_to"] = seek_to_seconds
+        state["server_time"] = current_time
+
     await websocket.send_json({
         "type": "SYNC_STATE",
         "payload": state
@@ -136,9 +143,16 @@ async def websocket_endpoint(websocket: WebSocket, room_id: str):
                     "paused_at": None
                 })
 
+                # Calculate exact seek position on server side for precise sync
+                seek_to_seconds = (now - started_at) / 1000.0
+
                 await manager.broadcast({
                     "type": "PLAY",
-                    "payload": {"started_at": started_at}
+                    "payload": {
+                        "started_at": started_at,
+                        "seek_to": seek_to_seconds,
+                        "server_time": now
+                    }
                 }, room_id)
 
             elif action == "PAUSE":

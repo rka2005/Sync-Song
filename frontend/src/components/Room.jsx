@@ -153,15 +153,24 @@ const Room = () => {
                 }
 
                 case 'SYNC_STATE': {
-                    const { url, is_playing, started_at } = payload;
+                    const { url, is_playing, started_at, seek_to, server_time } = payload;
 
                     if (url) setUrl(url);
 
                     if (player && is_playing && started_at) {
-                        const elapsed = (Date.now() - started_at) / 1000;
+                        // Use server-calculated position for precise sync
+                        let seekPosition = seek_to || 0;
+                        
+                        // If server_time provided, add minimal client-side compensation
+                        if (server_time) {
+                            const clientReceiveTime = Date.now();
+                            const networkDelay = (clientReceiveTime - server_time) / 1000;
+                            // Add network delay compensation (max 2 seconds to avoid issues)
+                            seekPosition += Math.min(networkDelay, 2);
+                        }
 
                         ignoreNextStateChange.current = true;
-                        player.seekTo(elapsed, true);
+                        player.seekTo(seekPosition, true);
                         player.playVideo();
                         setPlaying(true);
                     } else {
@@ -170,11 +179,21 @@ const Room = () => {
                     break;
                 }
                 case 'PLAY': {
-                    if (!player || !payload?.started_at) break;
+                    if (!player) break;
 
-                    const elapsed = (Date.now() - payload.started_at) / 1000;
+                    // Use server-calculated seek position for precise sync
+                    let seekPosition = payload.seek_to || 0;
+                    
+                    // Add minimal network delay compensation if server_time provided
+                    if (payload.server_time) {
+                        const clientReceiveTime = Date.now();
+                        const networkDelay = (clientReceiveTime - payload.server_time) / 1000;
+                        // Add network delay compensation (max 2 seconds)
+                        seekPosition += Math.min(networkDelay, 2);
+                    }
+
                     ignoreNextStateChange.current = true;
-                    player.seekTo(elapsed, true);
+                    player.seekTo(seekPosition, true);
                     player.playVideo();
                     setPlaying(true);
                     break;
